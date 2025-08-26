@@ -1,7 +1,8 @@
 export interface User {
   id: string
   email: string
-  username: string
+  username?: string // Making username optional as we primarily use full_name
+  full_name?: string // Added full_name
   firstName?: string
   lastName?: string
   avatar?: string

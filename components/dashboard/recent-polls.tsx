@@ -104,7 +104,7 @@ export function RecentPolls() {
                 <div className="flex items-center justify-between mb-2">
                   <h4 className="font-medium truncate">{poll.title}</h4>
                 </div>
-                
+
                 <div className="flex items-center gap-4 text-sm text-muted-foreground">
                   <div className="flex items-center gap-1">
                     <Users className="h-3 w-3" />
@@ -112,23 +112,23 @@ export function RecentPolls() {
                   </div>
                   <div className="flex items-center gap-1">
                     <Clock className="h-3 w-3" />
-                    <span>{new Date(poll.created_at).toLocaleDateString()}</span>
+                    <span>{new Date(poll.createdAt).toLocaleDateString()}</span>
                   </div>
-                  <div className={`px-2 py-1 rounded-full text-xs ${poll.ends_at && new Date(poll.ends_at) < new Date() ? "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300" : "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"}`}>
-                    {poll.ends_at && new Date(poll.ends_at) < new Date() ? "Ended" : "Active"}
+                  <div className={`px-2 py-1 rounded-full text-xs ${poll.endsAt && new Date(poll.endsAt) < new Date() ? "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300" : "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"}`}>
+                    {poll.endsAt && new Date(poll.endsAt) < new Date() ? "Ended" : "Active"}
                   </div>
                 </div>
-                
+
                 <div className="mt-3">
                   <div className="flex gap-2 text-xs">
                     {poll.options.slice(0, 3).map((option, index) => {
-                      const optionVotes = poll.votes.filter(vote => vote.option_id === option.id).length
-                      const percentage = poll.votes.length > 0 
+                      const optionVotes = poll.votes.filter(vote => vote.optionId === option.id).length
+                      const percentage = poll.votes.length > 0
                         ? Math.round((optionVotes / poll.votes.length) * 100)
                         : 0
                       return (
                         <div key={option.id} className="flex items-center gap-1">
-                          <div 
+                          <div
                             className="w-2 h-2 rounded-full"
                             style={{ backgroundColor: `hsl(${index * 120}, 70%, 50%)` }}
                           />
@@ -139,7 +139,7 @@ export function RecentPolls() {
                   </div>
                 </div>
               </div>
-              
+
               <div className="ml-4 flex flex-col gap-2">
                 <Button asChild size="sm">
                   <Link href={`/polls/${poll.id}`}>View</Link>
@@ -148,7 +148,7 @@ export function RecentPolls() {
             </div>
           ))}
         </div>
-        
+
         {/* This condition is now redundant due to the early return above */}
         {/* {mockRecentPolls.length === 0 && (
           <div className="text-center py-8">

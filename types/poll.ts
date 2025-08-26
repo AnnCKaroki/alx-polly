@@ -7,7 +7,7 @@ export interface Poll {
   createdAt: Date
   endsAt?: Date
   isActive: boolean
-  totalVotes: number
+  votes: Vote[]
 }
 
 export interface PollOption {

@@ -99,20 +99,20 @@ export function PollList() {
                 <Users className="h-4 w-4" />
                 <span>{poll.votes.length} votes</span>
               </div>
-              {poll.ends_at && (
+              {poll.endsAt && (
                 <div className="flex items-center gap-1">
                   <Clock className="h-4 w-4" />
                   <span>
-                    Ends {new Date(poll.ends_at).toLocaleDateString()}
+                    Ends {new Date(poll.endsAt).toLocaleDateString()}
                   </span>
                 </div>
               )}
             </div>
-            
+
             <div className="space-y-2 mb-4">
               {poll.options.slice(0, 2).map((option) => {
-                const optionVotes = poll.votes.filter(vote => vote.option_id === option.id).length
-                const percentage = poll.votes.length > 0 
+                const optionVotes = poll.votes.filter(vote => vote.optionId === option.id).length
+                const percentage = poll.votes.length > 0
                   ? Math.round((optionVotes / poll.votes.length) * 100)
                   : 0
                 return (
@@ -127,7 +127,7 @@ export function PollList() {
                       <div
                         className="bg-primary h-2 rounded-full transition-all"
                         style={{
-                          width: poll.votes.length > 0 
+                          width: poll.votes.length > 0
                             ? `${(optionVotes / poll.votes.length) * 100}%`
                             : '0%'
                         }}
@@ -142,10 +142,10 @@ export function PollList() {
                 </p>
               )}
             </div>
-            
+
             <Button asChild className="w-full">
               <Link href={`/polls/${poll.id}`}>
-                {poll.ends_at && new Date(poll.ends_at) < new Date() ? "View Results" : "Vote Now"}
+                {poll.endsAt && new Date(poll.endsAt) < new Date() ? "View Results" : "Vote Now"}
               </Link>
             </Button>
           </CardContent>

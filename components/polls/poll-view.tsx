@@ -44,10 +44,10 @@ export function PollView({ pollId }: PollViewProps) {
 
   const handleVote = async () => {
     if (!selectedOption || !poll) return
-    
+
     setIsVoting(true)
     setError(null)
-    
+
     try {
       await vote(poll.id, selectedOption)
       const fetchedPoll = await getPoll(pollId)
@@ -133,7 +133,7 @@ export function PollView({ pollId }: PollViewProps) {
     )
   }
 
-  const isExpired = poll.ends_at && new Date() > new Date(poll.ends_at)
+  const isExpired = poll.endsAt && new Date() > new Date(poll.endsAt)
   const canVote = !isExpired && !userHasVoted
   const totalVotes = poll.votes.length
 
@@ -153,7 +153,7 @@ export function PollView({ pollId }: PollViewProps) {
             <Share2 className="h-4 w-4" />
           </Button>
         </div>
-        
+
         {shareMessage && (
           <div className="mt-2 text-center text-sm text-muted-foreground">
             {shareMessage}
@@ -165,29 +165,29 @@ export function PollView({ pollId }: PollViewProps) {
             <Users className="h-4 w-4" />
             <span>{totalVotes} votes</span>
           </div>
-          <div>Created {new Date(poll.created_at).toLocaleDateString()}</div>
-          {poll.ends_at && (
+          <div>Created {new Date(poll.createdAt).toLocaleDateString()}</div>
+          {poll.endsAt && (
             <div className="flex items-center gap-1">
               <Clock className="h-4 w-4" />
               <span>
-                {isExpired ? "Ended" : "Ends"} {new Date(poll.ends_at).toLocaleDateString()}
+                {isExpired ? "Ended" : "Ends"} {new Date(poll.endsAt).toLocaleDateString()}
               </span>
             </div>
           )}
         </div>
       </CardHeader>
-      
+
       <CardContent>
         <div className="space-y-4">
           {poll.options.map((option) => {
-            const optionVotes = poll.votes.filter(vote => vote.option_id === option.id).length
-            const percentage = totalVotes > 0 
+            const optionVotes = poll.votes.filter(vote => vote.optionId === option.id).length
+            const percentage = totalVotes > 0
               ? Math.round((optionVotes / totalVotes) * 100)
               : 0
-            
+
             return (
               <div key={option.id} className="space-y-2">
-                <div 
+                <div
                   className={`p-4 rounded-lg border cursor-pointer transition-colors ${
                     canVote
                       ? selectedOption === option.id
@@ -206,7 +206,7 @@ export function PollView({ pollId }: PollViewProps) {
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="mt-2 w-full bg-muted rounded-full h-2">
                     <div
                       className="bg-primary h-2 rounded-full transition-all duration-300"
@@ -218,11 +218,11 @@ export function PollView({ pollId }: PollViewProps) {
             )
           })}
         </div>
-        
+
         {canVote && (
           <div className="mt-6">
-            <Button 
-              onClick={handleVote} 
+            <Button
+              onClick={handleVote}
               disabled={!selectedOption || isVoting}
               className="w-full"
             >
@@ -230,7 +230,7 @@ export function PollView({ pollId }: PollViewProps) {
             </Button>
           </div>
         )}
-        
+
         {userHasVoted && (
           <div className="mt-6 p-4 bg-green-50 dark:bg-green-950 rounded-lg">
             <p className="text-green-700 dark:text-green-300 font-medium">
@@ -238,7 +238,7 @@ export function PollView({ pollId }: PollViewProps) {
             </p>
           </div>
         )}
-        
+
         {isExpired && (
           <div className="mt-6 p-4 bg-muted rounded-lg">
             <p className="text-muted-foreground">

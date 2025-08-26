@@ -4,15 +4,17 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
 interface PollPageProps {
-  // Update the type to reflect the change in Next.js 15
+  // CORRECTED: `params` is a Promise
   params: Promise<{ id: string }>;
-  searchParams: { [key: string]: string | string[] | undefined };
+  // CORRECTED: `searchParams` is also a Promise
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
-// Mark the component as async to use await
-export default async function PollPage({ params }: PollPageProps) {
-  // Await the params to get the value
+// CORRECTED: The component must be `async`
+export default async function PollPage({ params, searchParams }: PollPageProps) {
+  // Await both promises to get their values
   const resolvedParams = await params;
+  const resolvedSearchParams = await searchParams;
 
   return (
     <div className="container mx-auto py-8">
@@ -26,7 +28,6 @@ export default async function PollPage({ params }: PollPageProps) {
       </div>
 
       <div className="max-w-2xl mx-auto">
-        {/* Pass the ID from the resolved object */}
         <PollView pollId={resolvedParams.id} />
       </div>
     </div>
