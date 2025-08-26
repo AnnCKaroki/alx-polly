@@ -1,14 +1,19 @@
-import { PollView } from "@/components/polls/poll-view"
-import { Button } from "@/components/ui/button"
-import Link from "next/link"
-import { ArrowLeft } from "lucide-react"
+import { PollView } from "@/components/polls/poll-view";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 
 interface PollPageProps {
-  params: { id: string }
-  searchParams: { [key: string]: string | string[] | undefined }
+  // Update the type to reflect the change in Next.js 15
+  params: Promise<{ id: string }>;
+  searchParams: { [key: string]: string | string[] | undefined };
 }
 
-export default function PollPage({ params }: PollPageProps) {
+// Mark the component as async to use await
+export default async function PollPage({ params }: PollPageProps) {
+  // Await the params to get the value
+  const resolvedParams = await params;
+
   return (
     <div className="container mx-auto py-8">
       <div className="mb-6">
@@ -19,10 +24,11 @@ export default function PollPage({ params }: PollPageProps) {
           </Link>
         </Button>
       </div>
-      
+
       <div className="max-w-2xl mx-auto">
-        <PollView pollId={params.id} />
+        {/* Pass the ID from the resolved object */}
+        <PollView pollId={resolvedParams.id} />
       </div>
     </div>
-  )
+  );
 }
