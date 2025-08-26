@@ -54,10 +54,6 @@ export async function sharePoll(pollId: string, title: string): Promise<boolean>
   }
 }
 
-export function generateMockPollId(): string {
-  return `poll_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-}
-
 /**
  * Formats a Date object for use in datetime-local inputs
  * Avoids timezone conversion issues by using local time methods

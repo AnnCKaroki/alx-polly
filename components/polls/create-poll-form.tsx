@@ -1,17 +1,19 @@
-"use client"
+'use client'
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
-import { CreatePollData } from "@/types/poll"
-import { generateMockPollId, copyPollLink, formatDateForInput, parseDateFromInput } from "@/lib/poll-utils"
+import { createPoll } from "@/app/polls/actions"
+import { useAuth } from "@/app/auth/context/auth-context"
+import { formatDateForInput, parseDateFromInput } from "@/lib/poll-utils"
 import { Plus, Trash2, CheckCircle2, Eye, Share2, RotateCcw, AlertCircle } from "lucide-react"
 
 export function CreatePollForm() {
   const router = useRouter()
-  const [formData, setFormData] = useState<CreatePollData>({
+  const { session } = useAuth()
+  const [formData, setFormData] = useState({
     title: "",
     description: "",
     options: ["", ""],
@@ -44,28 +46,10 @@ export function CreatePollForm() {
     setError(null) // Clear any previous errors
 
     try {
-      // TODO: Implement actual poll creation logic
-      console.log("Creating poll:", pollData)
-
-      // Simulate API call
-      await new Promise((resolve, reject) => {
-        setTimeout(() => {
-          // Simulate potential errors
-          const random = Math.random()
-          if (random < 0.1) {
-            reject(new Error("Failed to create poll. Please try again."))
-          } else {
-            // Generate mock poll ID (would come from API response)
-            const mockPollId = generateMockPollId()
-            resolve(mockPollId)
-          }
-        }, 1000)
-      }).then((pollId) => {
-        // Success - show success screen with options
-        setCreatedPollId(pollId as string)
-        setIsSuccess(true)
-        console.log("Poll created successfully with ID:", pollId)
-      })
+      const poll = await createPoll(pollData)
+      setCreatedPollId(poll.id)
+      setIsSuccess(true)
+      console.log("Poll created successfully with ID:", poll.id)
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Failed to create poll. Please try again."
@@ -151,11 +135,9 @@ export function CreatePollForm() {
                 size="sm"
                 className="flex flex-col h-auto py-4 px-3"
                 onClick={async () => {
-                  const success = await copyPollLink(createdPollId!)
-                  if (success) {
-                    setCopySuccess(true)
-                    setTimeout(() => setCopySuccess(false), 2000)
-                  }
+                  await navigator.clipboard.writeText(`${window.location.origin}/polls/${createdPollId}`)
+                  setCopySuccess(true)
+                  setTimeout(() => setCopySuccess(false), 2000)
                 }}
               >
                 {copySuccess ? (

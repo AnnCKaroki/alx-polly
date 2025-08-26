@@ -1,16 +1,40 @@
+'use client'
+
 import { DashboardStats } from "@/components/dashboard/dashboard-stats"
 import { RecentPolls } from "@/components/dashboard/recent-polls"
 import { WelcomeNewUser } from "@/components/dashboard/welcome-new-user"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { Plus } from "lucide-react"
+import { withAuth } from "@/app/auth/with-auth"
+import { useAuth } from "@/app/auth/context/auth-context"
+import { useEffect, useState } from "react"
+import { getRecentPolls } from "@/app/polls/actions"
 
-export default function DashboardPage() {
-  // TODO: Replace with actual user data check
-  const isNewUser = true // This would come from your auth/user state
-  const hasPolls = false // This would come from your polls data
+function DashboardPage() {
+  const { session } = useAuth()
+  const [hasPolls, setHasPolls] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
 
-  if (isNewUser || !hasPolls) {
+  useEffect(() => {
+    const checkPolls = async () => {
+      // No need to pass session here, getRecentPolls fetches it internally
+      const recentPolls = await getRecentPolls()
+      setHasPolls(recentPolls.length > 0)
+      setIsLoading(false)
+    }
+    checkPolls()
+  }, [session]) // Keep session as dependency to re-run when session changes
+
+  if (isLoading) {
+    return (
+      <div className="container mx-auto py-8 text-center">
+        <p>Loading dashboard...</p>
+      </div>
+    )
+  }
+
+  if (!hasPolls) {
     return (
       <div className="container mx-auto py-8">
         <WelcomeNewUser />
@@ -24,7 +48,7 @@ export default function DashboardPage() {
         <div>
           <h1 className="text-3xl font-bold">Dashboard</h1>
           <p className="text-muted-foreground mt-2">
-            Overview of your polling activity
+            Welcome, {session?.user?.user_metadata.full_name}!
           </p>
         </div>
         <Button asChild>
@@ -42,3 +66,5 @@ export default function DashboardPage() {
     </div>
   )
 }
+
+export default withAuth(DashboardPage)

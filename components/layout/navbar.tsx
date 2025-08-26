@@ -7,16 +7,32 @@ import {
   BarChart3, 
   Menu, 
   User, 
-  LogOut, 
-  Settings,
+  LogOut,
   Plus
 } from "lucide-react"
+import { useAuth } from "@/app/auth/context/auth-context"
+import { supabase } from "@/lib/supabase"
+import { useRouter } from "next/navigation"
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false)
-  // TODO: Replace with actual auth state
-  const isAuthenticated = false
-  const user = null
+  const { session } = useAuth()
+  const router = useRouter()
+
+  const handleSignOut = async () => {
+    try {
+      const { error } = await supabase.auth.signOut()
+      if (error) {
+        console.error("Error signing out:", error)
+        // Optionally, display a user-facing error message
+      }
+      router.push("/")
+    } catch (error) {
+      console.error("Unexpected error during sign out:", error)
+    }
+  }
+
+  const isAuthenticated = !!session
 
   return (
     <nav className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -62,6 +78,10 @@ export function Navbar() {
                   </Button>
                   {/* TODO: Add user dropdown menu */}
                 </div>
+                <Button variant="ghost" onClick={handleSignOut}>
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Sign Out
+                </Button>
               </>
             ) : (
               <>
@@ -117,11 +137,8 @@ export function Navbar() {
                         Create Poll
                       </Link>
                     </Button>
-                    <Button variant="ghost" className="justify-start">
-                      <Settings className="h-4 w-4 mr-2" />
-                      Settings
-                    </Button>
-                    <Button variant="ghost" className="justify-start text-destructive">
+                    {/* Removed Settings Button */}
+                    <Button variant="ghost" className="justify-start text-destructive" onClick={handleSignOut}>
                       <LogOut className="h-4 w-4 mr-2" />
                       Sign Out
                     </Button>

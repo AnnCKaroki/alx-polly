@@ -1,87 +1,91 @@
-"use client"
+'use client'
 
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { getPoll, vote, hasVoted } from "@/app/polls/actions"
+import { useAuth } from "@/app/auth/context/auth-context"
+import { Clock, Users, Share2, AlertCircle } from "lucide-react"
 import { Poll } from "@/types/poll"
-import { Clock, Users, Share2 } from "lucide-react"
 
 interface PollViewProps {
   pollId: string
 }
 
-// Mock poll data for development
-const mockPoll: Poll = {
-  id: "1",
-  title: "What's your favorite programming language?",
-  description: "Help us understand the community preferences for our next project stack",
-  options: [
-    { id: "1", text: "JavaScript", votes: 45 },
-    { id: "2", text: "Python", votes: 38 },
-    { id: "3", text: "TypeScript", votes: 42 },
-    { id: "4", text: "Rust", votes: 15 },
-    { id: "5", text: "Go", votes: 23 },
-  ],
-  createdBy: "user1",
-  createdAt: new Date("2024-01-15"),
-  isActive: true,
-  totalVotes: 163,
-}
-
 export function PollView({ pollId }: PollViewProps) {
+  const { session } = useAuth()
   const [poll, setPoll] = useState<Poll | null>(null)
   const [selectedOption, setSelectedOption] = useState<string | null>(null)
-  const [hasVoted, setHasVoted] = useState(false)
+  const [userHasVoted, setUserHasVoted] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [isVoting, setIsVoting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [shareMessage, setShareMessage] = useState<string | null>(null)
 
   useEffect(() => {
-    // TODO: Replace with actual API call
     const fetchPoll = async () => {
       setIsLoading(true)
-      // Simulate API delay
-      setTimeout(() => {
-        setPoll(mockPoll)
+      setError(null)
+      try {
+        const fetchedPoll = await getPoll(pollId)
+        const userVoted = await hasVoted(pollId)
+        setPoll(fetchedPoll as Poll)
+        setUserHasVoted(userVoted)
+      } catch (err) {
+        console.error("Failed to fetch poll:", err)
+        setError("Failed to load poll. It might not exist or an error occurred.")
+      } finally {
         setIsLoading(false)
-        // TODO: Check if user has already voted
-        setHasVoted(false)
-      }, 500)
+      }
     }
 
     fetchPoll()
-  }, [pollId])
+  }, [pollId, session])
 
   const handleVote = async () => {
     if (!selectedOption || !poll) return
     
     setIsVoting(true)
+    setError(null)
     
-    // TODO: Implement actual voting logic
-    console.log("Voting for option:", selectedOption)
-    
-    // Simulate API call
-    setTimeout(() => {
-      setHasVoted(true)
+    try {
+      await vote(poll.id, selectedOption)
+      const fetchedPoll = await getPoll(pollId)
+      const userVoted = await hasVoted(pollId)
+      setPoll(fetchedPoll as Poll)
+      setUserHasVoted(userVoted)
+    } catch (err) {
+      console.error("Failed to submit vote:", err)
+      setError("Failed to submit your vote. Please try again.")
+    } finally {
       setIsVoting(false)
-      // TODO: Update poll data with new vote counts
-    }, 500)
+    }
   }
 
   const handleShare = async () => {
+    setShareMessage(null)
     if (navigator.share) {
       try {
         await navigator.share({
           title: poll?.title || "Check out this poll",
           url: window.location.href,
         })
+        setShareMessage("Poll shared successfully!")
       } catch (error) {
         console.log("Error sharing:", error)
+        setShareMessage("Failed to share poll.")
       }
     } else {
       // Fallback: copy to clipboard
-      await navigator.clipboard.writeText(window.location.href)
-      alert("Poll link copied to clipboard!")
+      try {
+        await navigator.clipboard.writeText(window.location.href)
+        setShareMessage("Poll link copied to clipboard!")
+      } catch (err) {
+        console.error("Failed to copy link:", err)
+        setShareMessage("Failed to copy poll link.")
+      }
     }
+    setTimeout(() => setShareMessage(null), 3000) // Clear message after 3 seconds
   }
 
   if (isLoading) {
@@ -105,6 +109,17 @@ export function PollView({ pollId }: PollViewProps) {
     )
   }
 
+  if (error) {
+    return (
+      <Card>
+        <CardContent className="p-6 text-center text-destructive flex items-center justify-center gap-2">
+          <AlertCircle className="h-5 w-5" />
+          <span>{error}</span>
+        </CardContent>
+      </Card>
+    )
+  }
+
   if (!poll) {
     return (
       <Card>
@@ -118,8 +133,9 @@ export function PollView({ pollId }: PollViewProps) {
     )
   }
 
-  const isExpired = poll.endsAt && new Date() > poll.endsAt
-  const canVote = poll.isActive && !isExpired && !hasVoted
+  const isExpired = poll.ends_at && new Date() > new Date(poll.ends_at)
+  const canVote = !isExpired && !userHasVoted
+  const totalVotes = poll.votes.length
 
   return (
     <Card>
@@ -138,17 +154,23 @@ export function PollView({ pollId }: PollViewProps) {
           </Button>
         </div>
         
+        {shareMessage && (
+          <div className="mt-2 text-center text-sm text-muted-foreground">
+            {shareMessage}
+          </div>
+        )}
+
         <div className="flex items-center gap-4 text-sm text-muted-foreground">
           <div className="flex items-center gap-1">
             <Users className="h-4 w-4" />
-            <span>{poll.totalVotes} votes</span>
+            <span>{totalVotes} votes</span>
           </div>
-          <div>Created {poll.createdAt.toLocaleDateString()}</div>
-          {poll.endsAt && (
+          <div>Created {new Date(poll.created_at).toLocaleDateString()}</div>
+          {poll.ends_at && (
             <div className="flex items-center gap-1">
               <Clock className="h-4 w-4" />
               <span>
-                {isExpired ? "Ended" : "Ends"} {poll.endsAt.toLocaleDateString()}
+                {isExpired ? "Ended" : "Ends"} {new Date(poll.ends_at).toLocaleDateString()}
               </span>
             </div>
           )}
@@ -158,8 +180,9 @@ export function PollView({ pollId }: PollViewProps) {
       <CardContent>
         <div className="space-y-4">
           {poll.options.map((option) => {
-            const percentage = poll.totalVotes > 0 
-              ? Math.round((option.votes / poll.totalVotes) * 100)
+            const optionVotes = poll.votes.filter(vote => vote.option_id === option.id).length
+            const percentage = totalVotes > 0 
+              ? Math.round((optionVotes / totalVotes) * 100)
               : 0
             
             return (
@@ -179,7 +202,7 @@ export function PollView({ pollId }: PollViewProps) {
                     <div className="text-right">
                       <div className="font-semibold">{percentage}%</div>
                       <div className="text-sm text-muted-foreground">
-                        {option.votes} votes
+                        {optionVotes} votes
                       </div>
                     </div>
                   </div>
@@ -208,7 +231,7 @@ export function PollView({ pollId }: PollViewProps) {
           </div>
         )}
         
-        {hasVoted && (
+        {userHasVoted && (
           <div className="mt-6 p-4 bg-green-50 dark:bg-green-950 rounded-lg">
             <p className="text-green-700 dark:text-green-300 font-medium">
               ✓ Thank you for voting!

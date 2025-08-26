@@ -5,56 +5,28 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Poll } from "@/types/poll"
 import Link from "next/link"
-import { Clock, Users, Vote } from "lucide-react"
+import { Clock, Users, Vote, AlertCircle } from "lucide-react"
 
-// Mock data for development
-const mockPolls: Poll[] = [
-  {
-    id: "1",
-    title: "What's your favorite programming language?",
-    description: "Help us understand the community preferences",
-    options: [
-      { id: "1", text: "JavaScript", votes: 45 },
-      { id: "2", text: "Python", votes: 38 },
-      { id: "3", text: "TypeScript", votes: 42 },
-      { id: "4", text: "Rust", votes: 15 },
-    ],
-    createdBy: "user1",
-    createdAt: new Date("2024-01-15"),
-    isActive: true,
-    totalVotes: 140,
-  },
-  {
-    id: "2",
-    title: "Best time for team meetings?",
-    description: "Let's find a time that works for everyone",
-    options: [
-      { id: "1", text: "9:00 AM", votes: 12 },
-      { id: "2", text: "11:00 AM", votes: 23 },
-      { id: "3", text: "2:00 PM", votes: 18 },
-      { id: "4", text: "4:00 PM", votes: 7 },
-    ],
-    createdBy: "user2",
-    createdAt: new Date("2024-01-14"),
-    endsAt: new Date("2024-01-20"),
-    isActive: true,
-    totalVotes: 60,
-  },
-]
+import { getAllPolls } from "@/app/polls/actions"
 
 export function PollList() {
   const [polls, setPolls] = useState<Poll[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    // TODO: Replace with actual API call
     const fetchPolls = async () => {
       setIsLoading(true)
-      // Simulate API delay
-      setTimeout(() => {
-        setPolls(mockPolls)
+      setError(null)
+      try {
+        const allPolls = await getAllPolls()
+        setPolls(allPolls as Poll[])
+      } catch (err) {
+        console.error("Failed to fetch polls:", err)
+        setError("Failed to load polls.")
+      } finally {
         setIsLoading(false)
-      }, 500)
+      }
     }
 
     fetchPolls()
@@ -78,6 +50,17 @@ export function PollList() {
           </Card>
         ))}
       </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <Card className="col-span-full">
+        <CardContent className="p-6 text-center text-destructive flex items-center justify-center gap-2">
+          <AlertCircle className="h-5 w-5" />
+          <span>{error}</span>
+        </CardContent>
+      </Card>
     )
   }
 
@@ -114,41 +97,45 @@ export function PollList() {
             <div className="flex items-center justify-between text-sm text-muted-foreground mb-4">
               <div className="flex items-center gap-1">
                 <Users className="h-4 w-4" />
-                <span>{poll.totalVotes} votes</span>
+                <span>{poll.votes.length} votes</span>
               </div>
-              {poll.endsAt && (
+              {poll.ends_at && (
                 <div className="flex items-center gap-1">
                   <Clock className="h-4 w-4" />
                   <span>
-                    Ends {poll.endsAt.toLocaleDateString()}
+                    Ends {new Date(poll.ends_at).toLocaleDateString()}
                   </span>
                 </div>
               )}
             </div>
             
             <div className="space-y-2 mb-4">
-              {poll.options.slice(0, 2).map((option) => (
-                <div key={option.id} className="text-sm">
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="truncate">{option.text}</span>
-                    <span className="text-muted-foreground">
-                      {poll.totalVotes > 0 
-                        ? Math.round((option.votes / poll.totalVotes) * 100)
-                        : 0}%
-                    </span>
+              {poll.options.slice(0, 2).map((option) => {
+                const optionVotes = poll.votes.filter(vote => vote.option_id === option.id).length
+                const percentage = poll.votes.length > 0 
+                  ? Math.round((optionVotes / poll.votes.length) * 100)
+                  : 0
+                return (
+                  <div key={option.id} className="text-sm">
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="truncate">{option.text}</span>
+                      <span className="text-muted-foreground">
+                        {percentage}%
+                      </span>
+                    </div>
+                    <div className="w-full bg-muted rounded-full h-2">
+                      <div
+                        className="bg-primary h-2 rounded-full transition-all"
+                        style={{
+                          width: poll.votes.length > 0 
+                            ? `${(optionVotes / poll.votes.length) * 100}%`
+                            : '0%'
+                        }}
+                      />
+                    </div>
                   </div>
-                  <div className="w-full bg-muted rounded-full h-2">
-                    <div
-                      className="bg-primary h-2 rounded-full transition-all"
-                      style={{
-                        width: poll.totalVotes > 0 
-                          ? `${(option.votes / poll.totalVotes) * 100}%`
-                          : '0%'
-                      }}
-                    />
-                  </div>
-                </div>
-              ))}
+                )
+              })}
               {poll.options.length > 2 && (
                 <p className="text-xs text-muted-foreground">
                   +{poll.options.length - 2} more options
@@ -158,7 +145,7 @@ export function PollList() {
             
             <Button asChild className="w-full">
               <Link href={`/polls/${poll.id}`}>
-                {poll.isActive ? "Vote Now" : "View Results"}
+                {poll.ends_at && new Date(poll.ends_at) < new Date() ? "View Results" : "Vote Now"}
               </Link>
             </Button>
           </CardContent>

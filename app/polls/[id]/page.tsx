@@ -5,6 +5,7 @@ import { ArrowLeft } from "lucide-react"
 
 interface PollPageProps {
   params: { id: string }
+  searchParams: { [key: string]: string | string[] | undefined }
 }
 
 export default function PollPage({ params }: PollPageProps) {

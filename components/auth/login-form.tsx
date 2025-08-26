@@ -1,12 +1,12 @@
-"use client"
+'use client'
 
-import { useState } from "react"
+import { useState }from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import Link from "next/link"
-import { LoginData } from "@/types/user"
 import { AlertCircle, CheckCircle2 } from "lucide-react"
+import { supabase } from "@/lib/supabase"
 
 interface LoginErrors {
   email?: string
@@ -16,7 +16,7 @@ interface LoginErrors {
 
 export function LoginForm() {
   const router = useRouter()
-  const [formData, setFormData] = useState<LoginData>({
+  const [formData, setFormData] = useState({
     email: "",
     password: "",
   })
@@ -35,8 +35,8 @@ export function LoginForm() {
 
     if (!formData.password) {
       newErrors.password = "Password is required"
-    } else if (formData.password.length < 6) {
-      newErrors.password = "Password must be at least 6 characters"
+    } else if (formData.password.length < 8) {
+      newErrors.password = "Password must be at least 8 characters"
     }
 
     setErrors(newErrors)
@@ -54,25 +54,14 @@ export function LoginForm() {
     setErrors({})
 
     try {
-      // TODO: Implement actual login logic
-      console.log("Login attempt:", formData)
-
-      // Simulate API call with potential errors
-      await new Promise((resolve, reject) => {
-        setTimeout(() => {
-          // Simulate different error scenarios
-          const random = Math.random()
-          if (random < 0.4) {
-            reject(new Error("Invalid email or password"))
-          } else if (random < 0.6) {
-            reject(new Error("Account not found"))
-          } else if (random < 0.7) {
-            reject(new Error("Too many login attempts. Please try again later."))
-          } else {
-            resolve(true)
-          }
-        }, 1000)
+      const { error } = await supabase.auth.signInWithPassword({
+        email: formData.email,
+        password: formData.password,
       })
+
+      if (error) {
+        throw error
+      }
 
       // Success - show success state briefly then redirect
       console.log("Login successful!")
@@ -165,15 +154,6 @@ export function LoginForm() {
         {errors.password && (
           <p className="text-xs text-destructive mt-1">{errors.password}</p>
         )}
-      </div>
-
-      <div className="text-right">
-        <Link
-          href="/auth/forgot-password"
-          className="text-xs text-muted-foreground hover:text-primary transition-colors"
-        >
-          Forgot your password?
-        </Link>
       </div>
 
       <Button type="submit" className="w-full" disabled={isLoading || isSuccess}>
