@@ -1,19 +1,32 @@
-import { createPoll } from '@/app/polls/actions';
+// app/api/polls/[id]/route.ts
+
+import { deletePoll, getPollById } from '@/app/polls/actions';
 import { NextResponse, NextRequest } from 'next/server';
 
-export async function POST(request: NextRequest) {
+export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const pollData = await request.json();
-    const newPoll = await createPoll(pollData);
-    return NextResponse.json(newPoll, { status: 201 });
+    const pollId = params.id;
+    // The asynchronous call (getPollById) is inside the function body
+    const poll = await getPollById(pollId);
+
+    if (!poll) {
+      return NextResponse.json({ error: 'Poll not found' }, { status: 404 });
+    }
+
+    return NextResponse.json(poll);
   } catch (error: any) {
-    console.error("Failed to create poll:", error);
-    if (error.message.includes("You must be logged in")) {
-      return NextResponse.json({ error: error.message }, { status: 401 });
-    }
-    if (error.message.includes("at least two valid options") || error.message.includes("cannot be empty")) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
-    }
-    return NextResponse.json({ error: 'Failed to create poll' }, { status: 500 });
+    console.error("Error fetching poll:", error);
+    return NextResponse.json({ error: 'Failed to fetch poll' }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+  try {
+    const pollId = params.id;
+    // The asynchronous call (deletePoll) is inside the function body
+    await deletePoll(pollId);
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message || 'Failed to delete poll' }, { status: 400 });
   }
 }
