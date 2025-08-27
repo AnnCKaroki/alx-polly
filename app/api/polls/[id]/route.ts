@@ -1,16 +1,13 @@
 import { deletePoll, getPollById } from '@/app/polls/actions';
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 
-// GET handler to fetch a single poll
-export async function GET(request: Request, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const pollId = params.id;
     const poll = await getPollById(pollId);
-
     if (!poll) {
       return NextResponse.json({ error: 'Poll not found' }, { status: 404 });
     }
-
     return NextResponse.json(poll);
   } catch (error: any) {
     console.error("Error fetching poll:", error);
@@ -18,8 +15,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
   }
 }
 
-// DELETE handler to delete a poll
-export async function DELETE(request: Request, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const pollId = params.id;
     await deletePoll(pollId);

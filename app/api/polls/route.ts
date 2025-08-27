@@ -1,7 +1,7 @@
 import { createPoll } from '@/app/polls/actions';
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const pollData = await request.json();
     const newPoll = await createPoll(pollData);
