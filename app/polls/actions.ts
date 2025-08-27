@@ -1,8 +1,53 @@
+
 'use server'
+// Delete a poll (only by owner)
+export async function deletePoll(pollId: string) {
+  const cookieStore = await cookies()
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value
+        },
+        set(name: string, value: string, options: CookieOptions) {
+          cookieStore.set({ name, value, ...options })
+        },
+        remove(name: string, options: CookieOptions) {
+          cookieStore.set({ name, value: '', ...options })
+        },
+      },
+    }
+  )
+  const { data: { user }, error: userError } = await supabase.auth.getUser()
+  if (userError || !user) {
+    throw new Error("You must be logged in to delete a poll.")
+  }
+
+  // Only allow deleting polls owned by the user
+  const { error } = await supabase
+    .from("polls")
+    .delete()
+    .eq("id", pollId)
+    .eq("user_id", user.id)
+
+  if (error) {
+    throw error
+  }
+
+  revalidatePath("/polls")
+  revalidatePath(`/polls/${pollId}`)
+  return { success: true }
+}
+
+
+
+// src/app/polls/actions.ts
 
 import { revalidatePath } from "next/cache"
 import { cookies } from 'next/headers'
-import { createServerActionClient } from '@supabase/auth-helpers-nextjs'
+import { createServerClient, type CookieOptions } from '@supabase/ssr'
 
 // Basic XSS sanitization function
 function sanitizeInput(input: string | undefined): string | undefined {
@@ -18,10 +63,27 @@ export async function createPoll(
     endsAt: Date | undefined
   }
 ) {
-  const supabase = createServerActionClient({ cookies })
-  const { data: { session } } = await supabase.auth.getSession()
+  const cookieStore = await cookies()
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value
+        },
+        set(name: string, value: string, options: CookieOptions) {
+          cookieStore.set({ name, value, ...options })
+        },
+        remove(name: string, options: CookieOptions) {
+          cookieStore.set({ name, value: '', ...options })
+        },
+      },
+    }
+  )
 
-  if (!session) {
+  const { data: { user }, error: userError } = await supabase.auth.getUser()
+  if (userError || !user) {
     throw new Error("You must be logged in to create a poll.")
   }
 
@@ -32,8 +94,8 @@ export async function createPoll(
   }
 
   const sanitizedDescription = sanitizeInput(pollData.description)
-
   const validOptions = pollData.options.map(opt => sanitizeInput(opt) || '').filter(opt => opt.trim().length > 0)
+
   if (validOptions.length < 2) {
     throw new Error("A poll must have at least two valid options.")
   }
@@ -48,7 +110,7 @@ export async function createPoll(
       title: sanitizedTitle,
       description: sanitizedDescription,
       ends_at: pollData.endsAt,
-      user_id: session.user.id,
+  user_id: user.id,
     }])
     .select()
 
@@ -66,7 +128,6 @@ export async function createPoll(
   )
 
   if (optionsError) {
-    // If creating options fails, delete the poll to avoid orphaned polls
     await supabase.from("polls").delete().eq("id", poll.id)
     throw optionsError
   }
@@ -77,8 +138,25 @@ export async function createPoll(
   return poll
 }
 
-export async function getPoll(pollId: string) {
-  const supabase = createServerActionClient({ cookies })
+export async function getPollById(pollId: string) {
+  const cookieStore = await cookies()
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value
+        },
+        set(name: string, value: string, options: CookieOptions) {
+          cookieStore.set({ name, value, ...options })
+        },
+        remove(name: string, options: CookieOptions) {
+          cookieStore.set({ name, value: '', ...options })
+        },
+      },
+    }
+  )
   const { data: poll, error } = await supabase
     .from("polls")
     .select(`
@@ -97,10 +175,27 @@ export async function getPoll(pollId: string) {
 }
 
 export async function vote(pollId: string, optionId: string) {
-  const supabase = createServerActionClient({ cookies })
-  const { data: { session } } = await supabase.auth.getSession()
+  const cookieStore = await cookies()
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value
+        },
+        set(name: string, value: string, options: CookieOptions) {
+          cookieStore.set({ name, value, ...options })
+        },
+        remove(name: string, options: CookieOptions) {
+          cookieStore.set({ name, value: '', ...options })
+        },
+      },
+    }
+  )
 
-  if (!session) {
+  const { data: { user }, error: userError } = await supabase.auth.getUser()
+  if (userError || !user) {
     throw new Error("You must be logged in to vote.")
   }
 
@@ -109,7 +204,7 @@ export async function vote(pollId: string, optionId: string) {
     .insert([{
       poll_id: pollId,
       option_id: optionId,
-      user_id: session.user.id,
+  user_id: user.id,
     }])
 
   if (error) {
@@ -122,10 +217,27 @@ export async function vote(pollId: string, optionId: string) {
 }
 
 export async function hasVoted(pollId: string) {
-  const supabase = createServerActionClient({ cookies })
-  const { data: { session } } = await supabase.auth.getSession()
+  const cookieStore = await cookies()
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value
+        },
+        set(name: string, value: string, options: CookieOptions) {
+          cookieStore.set({ name, value, ...options })
+        },
+        remove(name: string, options: CookieOptions) {
+          cookieStore.set({ name, value: '', ...options })
+        },
+      },
+    }
+  )
 
-  if (!session) {
+  const { data: { user }, error: userError } = await supabase.auth.getUser()
+  if (userError || !user) {
     return false
   }
 
@@ -133,7 +245,7 @@ export async function hasVoted(pollId: string) {
     .from("votes")
     .select("id")
     .eq("poll_id", pollId)
-    .eq("user_id", session.user.id)
+  .eq("user_id", user.id)
 
   if (error) {
     throw error
@@ -143,10 +255,27 @@ export async function hasVoted(pollId: string) {
 }
 
 export async function getDashboardStats() {
-  const supabase = createServerActionClient({ cookies })
-  const { data: { session } } = await supabase.auth.getSession()
+  const cookieStore = await cookies()
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value
+        },
+        set(name: string, value: string, options: CookieOptions) {
+          cookieStore.set({ name, value, ...options })
+        },
+        remove(name: string, options: CookieOptions) {
+          cookieStore.set({ name, value: '', ...options })
+        },
+      },
+    }
+  )
 
-  if (!session) {
+  const { data: { user }, error: userError } = await supabase.auth.getUser()
+  if (userError || !user) {
     return {
       totalPolls: 0,
       totalVotes: 0,
@@ -158,14 +287,13 @@ export async function getDashboardStats() {
   const { data: polls, error: pollsError } = await supabase
     .from("polls")
     .select("id, ends_at")
-    .eq("user_id", session.user.id)
+  .eq("user_id", user.id)
 
   if (pollsError) {
     throw pollsError
   }
 
   const pollIds = polls.map((p: { id: any }) => p.id)
-
   const { data: votes, error: votesError } = await supabase
     .from("votes")
     .select("id")
@@ -189,10 +317,27 @@ export async function getDashboardStats() {
 }
 
 export async function getRecentPolls() {
-  const supabase = createServerActionClient({ cookies })
-  const { data: { session } } = await supabase.auth.getSession()
+  const cookieStore = await cookies()
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value
+        },
+        set(name: string, value: string, options: CookieOptions) {
+          cookieStore.set({ name, value, ...options })
+        },
+        remove(name: string, options: CookieOptions) {
+          cookieStore.set({ name, value: '', ...options })
+        },
+      },
+    }
+  )
 
-  if (!session) {
+  const { data: { user }, error: userError } = await supabase.auth.getUser()
+  if (userError || !user) {
     return []
   }
 
@@ -203,7 +348,7 @@ export async function getRecentPolls() {
       options (*),
       votes (*)
     `)
-    .eq("user_id", session.user.id)
+  .eq("user_id", user.id)
     .order("created_at", { ascending: false })
     .limit(3)
 
@@ -215,7 +360,24 @@ export async function getRecentPolls() {
 }
 
 export async function getAllPolls() {
-  const supabase = createServerActionClient({ cookies })
+  const cookieStore = await cookies()
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value
+        },
+        set(name: string, value: string, options: CookieOptions) {
+          cookieStore.set({ name, value, ...options })
+        },
+        remove(name: string, options: CookieOptions) {
+          cookieStore.set({ name, value: '', ...options })
+        },
+      },
+    }
+  )
   const { data: polls, error } = await supabase
     .from("polls")
     .select(`

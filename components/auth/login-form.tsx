@@ -1,12 +1,12 @@
 'use client'
 
-import { useState }from "react"
+import { useState, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import Link from "next/link"
 import { AlertCircle, CheckCircle2 } from "lucide-react"
-import { supabase } from "@/lib/supabase"
+import { createClient } from "@/lib/supabase/client"   // ✅ browser client
 
 interface LoginErrors {
   email?: string
@@ -16,6 +16,8 @@ interface LoginErrors {
 
 export function LoginForm() {
   const router = useRouter()
+  const supabase = useMemo(() => createClient(), [])   // ✅ use browser client here only once
+
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -45,10 +47,7 @@ export function LoginForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-
-    if (!validateForm()) {
-      return
-    }
+    if (!validateForm()) return
 
     setIsLoading(true)
     setErrors({})
@@ -59,21 +58,16 @@ export function LoginForm() {
         password: formData.password,
       })
 
-      if (error) {
-        throw error
-      }
+      if (error) throw error
 
-      // Success - show success state briefly then redirect
-      console.log("Login successful!")
       setIsSuccess(true)
-
-      // Brief delay to show success message, then redirect to dashboard
       setTimeout(() => {
         router.push("/dashboard")
       }, 1500)
 
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Login failed. Please try again."
+      const errorMessage =
+        error instanceof Error ? error.message : "Login failed. Please try again."
       setErrors({ general: errorMessage })
     } finally {
       setIsLoading(false)
@@ -82,17 +76,10 @@ export function LoginForm() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }))
+    setFormData(prev => ({ ...prev, [name]: value }))
 
-    // Clear errors when user starts typing
     if (errors[name as keyof LoginErrors]) {
-      setErrors(prev => ({
-        ...prev,
-        [name]: undefined
-      }))
+      setErrors(prev => ({ ...prev, [name]: undefined }))
     }
   }
 
@@ -120,10 +107,9 @@ export function LoginForm() {
         </div>
       )}
 
+      {/* Email Field */}
       <div className="space-y-2">
-        <label htmlFor="email" className="text-sm font-medium">
-          Email
-        </label>
+        <label htmlFor="email" className="text-sm font-medium">Email</label>
         <Input
           id="email"
           name="email"
@@ -133,15 +119,12 @@ export function LoginForm() {
           onChange={handleInputChange}
           className={errors.email ? "border-destructive focus-visible:ring-destructive" : ""}
         />
-        {errors.email && (
-          <p className="text-xs text-destructive mt-1">{errors.email}</p>
-        )}
+        {errors.email && <p className="text-xs text-destructive mt-1">{errors.email}</p>}
       </div>
 
+      {/* Password Field */}
       <div className="space-y-2">
-        <label htmlFor="password" className="text-sm font-medium">
-          Password
-        </label>
+        <label htmlFor="password" className="text-sm font-medium">Password</label>
         <Input
           id="password"
           name="password"
@@ -151,9 +134,7 @@ export function LoginForm() {
           onChange={handleInputChange}
           className={errors.password ? "border-destructive focus-visible:ring-destructive" : ""}
         />
-        {errors.password && (
-          <p className="text-xs text-destructive mt-1">{errors.password}</p>
-        )}
+        {errors.password && <p className="text-xs text-destructive mt-1">{errors.password}</p>}
       </div>
 
       <Button type="submit" className="w-full" disabled={isLoading || isSuccess}>

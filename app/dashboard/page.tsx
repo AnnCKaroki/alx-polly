@@ -1,46 +1,29 @@
-'use client'
-
+// app/dashboard/page.tsx
 import { DashboardStats } from "@/components/dashboard/dashboard-stats"
-import { RecentPolls } from "@/components/dashboard/recent-polls"
+import {RecentPolls} from "@/components/dashboard/recent-polls"
 import { WelcomeNewUser } from "@/components/dashboard/welcome-new-user"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { Plus } from "lucide-react"
-import { withAuth } from "@/app/auth/with-auth"
-import { useAuth } from "@/app/auth/context/auth-context"
-import { useEffect, useState } from "react"
-import { getRecentPolls } from "@/app/polls/actions"
+import { createClient } from "@/lib/supabase/server"
+import { redirect } from "next/navigation"
+import { getRecentPolls, getDashboardStats } from "@/app/polls/actions"
 
-function DashboardPage() {
-  const { session } = useAuth()
-  const [hasPolls, setHasPolls] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
 
-  useEffect(() => {
-    const checkPolls = async () => {
-      // No need to pass session here, getRecentPolls fetches it internally
-      const recentPolls = await getRecentPolls()
-      setHasPolls(recentPolls.length > 0)
-      setIsLoading(false)
-    }
-    checkPolls()
-  }, [session]) // Keep session as dependency to re-run when session changes
-
-  if (isLoading) {
-    return (
-      <div className="container mx-auto py-8 text-center">
-        <p>Loading dashboard...</p>
-      </div>
-    )
+export default async function DashboardPage() {
+  // Server-side authentication check (secure)
+  const supabase = await createClient()
+  const { data: { user }, error } = await supabase.auth.getUser()
+  if (error || !user) {
+    redirect("/auth/login")
   }
 
-  if (!hasPolls) {
-    return (
-      <div className="container mx-auto py-8">
-        <WelcomeNewUser />
-      </div>
-    )
-  }
+  const [recentPolls, stats] = await Promise.all([
+    getRecentPolls(),
+    getDashboardStats(),
+  ])
+
+  const hasPolls = recentPolls.length > 0
 
   return (
     <div className="container mx-auto py-8">
@@ -48,7 +31,7 @@ function DashboardPage() {
         <div>
           <h1 className="text-3xl font-bold">Dashboard</h1>
           <p className="text-muted-foreground mt-2">
-            Welcome, {session?.user?.user_metadata.full_name}!
+            Welcome back 👋
           </p>
         </div>
         <Button asChild>
@@ -60,11 +43,16 @@ function DashboardPage() {
       </div>
 
       <div className="space-y-8">
-        <DashboardStats />
-        <RecentPolls />
+        {!hasPolls ? (
+          <WelcomeNewUser />
+        ) : (
+          <>
+            {/* Pass preloaded stats and polls as props */}
+            <DashboardStats initialStats={stats} />
+            <RecentPolls initialPolls={recentPolls} />
+          </>
+        )}
       </div>
     </div>
   )
 }
-
-export default withAuth(DashboardPage)

@@ -3,64 +3,96 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { getPoll, vote, hasVoted } from "@/app/polls/actions"
+import { useRouter } from "next/navigation"
 import { useAuth } from "@/app/auth/context/auth-context"
 import { Clock, Users, Share2, AlertCircle } from "lucide-react"
 import { Poll } from "@/types/poll"
 
 interface PollViewProps {
-  pollId: string
+  pollId: string;
+  initialPoll?: Poll; // Add an optional prop for initial data
 }
 
-export function PollView({ pollId }: PollViewProps) {
-  const { session } = useAuth()
-  const [poll, setPoll] = useState<Poll | null>(null)
-  const [selectedOption, setSelectedOption] = useState<string | null>(null)
-  const [userHasVoted, setUserHasVoted] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
-  const [isVoting, setIsVoting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [shareMessage, setShareMessage] = useState<string | null>(null)
+export function PollView({ pollId, initialPoll }: PollViewProps) {
+  const { session } = useAuth();
+  const router = useRouter();
+  const [poll, setPoll] = useState<Poll | null>(initialPoll || null);
+  const [selectedOption, setSelectedOption] = useState<string | null>(null);
+  const [userHasVoted, setUserHasVoted] = useState(false);
+  const [isLoading, setIsLoading] = useState(!initialPoll); // Set isLoading based on initial data presence
+  const [isVoting, setIsVoting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [shareMessage, setShareMessage] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
+    let isMounted = true;
     const fetchPoll = async () => {
-      setIsLoading(true)
-      setError(null)
+      setIsLoading(true);
+      setError(null);
       try {
-        const fetchedPoll = await getPoll(pollId)
-        const userVoted = await hasVoted(pollId)
-        setPoll(fetchedPoll as Poll)
-        setUserHasVoted(userVoted)
+        const res = await fetch(`/api/polls/${pollId}`);
+        if (!res.ok) {
+          throw new Error('Failed to load poll.');
+        }
+        const fetchedPoll = await res.json();
+        if (!isMounted) return;
+        setPoll(fetchedPoll as Poll);
+
+        // Check if user has voted
+        let userVoted = false;
+        if (session && session.user && fetchedPoll) {
+          const voteRes = await fetch(`/api/polls/${pollId}/has-voted?userId=${session.user.id}`);
+          if (voteRes.ok) {
+            const { hasVoted } = await voteRes.json();
+            userVoted = hasVoted;
+          }
+        }
+        if (isMounted) setUserHasVoted(userVoted);
       } catch (err) {
-        console.error("Failed to fetch poll:", err)
-        setError("Failed to load poll. It might not exist or an error occurred.")
+        if (isMounted) {
+          console.error("Failed to fetch poll:", err);
+          setError("Failed to load poll. It might not exist or an error occurred.");
+        }
       } finally {
-        setIsLoading(false)
+        if (isMounted) setIsLoading(false);
       }
+    };
+
+    // Only fetch if initial data isn't provided
+    if (!initialPoll) {
+      fetchPoll();
     }
 
-    fetchPoll()
-  }, [pollId, session])
+    return () => { isMounted = false; };
+  }, [pollId, session, initialPoll]); // Add initialPoll to the dependency array
 
   const handleVote = async () => {
-    if (!selectedOption || !poll) return
-
-    setIsVoting(true)
-    setError(null)
-
+    if (!selectedOption || !poll) return;
+    setIsVoting(true);
+    setError(null);
     try {
-      await vote(poll.id, selectedOption)
-      const fetchedPoll = await getPoll(pollId)
-      const userVoted = await hasVoted(pollId)
-      setPoll(fetchedPoll as Poll)
-      setUserHasVoted(userVoted)
+      const res = await fetch(`/api/polls/${poll.id}/vote`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ optionId: selectedOption })
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to submit vote.');
+      }
+      // Refresh poll data
+      const pollRes = await fetch(`/api/polls/${pollId}`);
+      const updatedPoll = await pollRes.json();
+      setPoll(updatedPoll as Poll);
+      setUserHasVoted(true);
     } catch (err) {
-      console.error("Failed to submit vote:", err)
-      setError("Failed to submit your vote. Please try again.")
+      console.error("Failed to submit vote:", err);
+      setError("Failed to submit your vote. Please try again.");
     } finally {
-      setIsVoting(false)
+      setIsVoting(false);
     }
-  }
+  };
 
   const handleShare = async () => {
     setShareMessage(null)
@@ -85,7 +117,25 @@ export function PollView({ pollId }: PollViewProps) {
         setShareMessage("Failed to copy poll link.")
       }
     }
-    setTimeout(() => setShareMessage(null), 3000) // Clear message after 3 seconds
+    setTimeout(() => setShareMessage(null), 3000)
+  }
+
+  const handleDelete = async () => {
+    if (!poll) return
+    setIsDeleting(true)
+    setError(null)
+    try {
+      const res = await fetch(`/api/polls/${poll.id}/delete`, { method: 'DELETE' })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Failed to delete poll')
+      }
+      router.push('/polls')
+    } catch (err: any) {
+      setError(err.message || 'Failed to delete poll')
+    } finally {
+      setIsDeleting(false)
+    }
   }
 
   if (isLoading) {
@@ -133,9 +183,11 @@ export function PollView({ pollId }: PollViewProps) {
     )
   }
 
-  const isExpired = poll.endsAt && new Date() > new Date(poll.endsAt)
-  const canVote = !isExpired && !userHasVoted
-  const totalVotes = poll.votes.length
+  // Only declare these once, after poll is loaded
+  const isExpired = poll.endsAt ? new Date() > new Date(poll.endsAt) : false;
+  const canVote = !isExpired && !userHasVoted;
+  const totalVotes = poll.votes?.length || 0;
+  const isOwner = Boolean(session && session.user && poll.createdBy && session.user.id === poll.createdBy);
 
   return (
     <Card>
@@ -149,9 +201,20 @@ export function PollView({ pollId }: PollViewProps) {
               </CardDescription>
             )}
           </div>
-          <Button variant="outline" size="icon" onClick={handleShare}>
-            <Share2 className="h-4 w-4" />
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" size="icon" onClick={handleShare}>
+              <Share2 className="h-4 w-4" />
+            </Button>
+            {isOwner && (
+              <Button variant="destructive" size="icon" onClick={handleDelete} disabled={isDeleting} title="Delete Poll">
+                {isDeleting ? (
+                  <span className="w-4 h-4 animate-spin border-2 border-white border-t-transparent rounded-full inline-block" />
+                ) : (
+                  <span className="font-bold">×</span>
+                )}
+              </Button>
+            )}
+          </div>
         </div>
 
         {shareMessage && (

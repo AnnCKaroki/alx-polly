@@ -1,11 +1,13 @@
 'use client'
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import Link from "next/link"
+
 import { AlertCircle, CheckCircle2 } from "lucide-react"
+import { createClient } from "@/lib/supabase/client" // browser client
 
 interface FormErrors {
   email?: string
@@ -16,6 +18,7 @@ interface FormErrors {
 
 export function RegisterForm() {
   const router = useRouter()
+  const supabase = useMemo(() => createClient(), []) // use browser client only once
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -59,29 +62,31 @@ export function RegisterForm() {
     setErrors({})
 
     try {
-      const response = await fetch("/api/auth/register", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      const { data, error } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          data: {
+            full_name: formData.full_name,
+          },
         },
-        body: JSON.stringify(formData),
       })
 
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || "Registration failed.")
+      if (error) {
+        let errorMessage = "Registration failed. Please try again."
+        if (error.message.includes("User already registered")) {
+          errorMessage = "A user with this email already exists."
+        } else if (error.message.includes("Password is too weak")) {
+          errorMessage = "Password is too weak. Please choose a stronger password."
+        }
+        throw new Error(errorMessage)
       }
 
       // Success - show success state briefly then redirect
-      console.log("Registration successful!")
       setIsSuccess(true)
-
-      // Brief delay to show success message, then redirect to dashboard
       setTimeout(() => {
         router.push("/dashboard")
       }, 1500)
-
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Registration failed. Please try again."
       setErrors({ general: errorMessage })
