@@ -1,10 +1,10 @@
 import { deletePoll, getPollById } from '@/app/polls/actions';
 import { NextResponse, NextRequest } from 'next/server';
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const pollId = params.id;
-    const poll = await getPollById(pollId);
+    const { id } = await params;
+    const poll = await getPollById(id);
     if (!poll) {
       return NextResponse.json({ error: 'Poll not found' }, { status: 404 });
     }
@@ -15,10 +15,10 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const pollId = params.id;
-    await deletePoll(pollId);
+    const { id } = await params;
+    await deletePoll(id);
     return NextResponse.json({ success: true });
   } catch (error: any) {
     return NextResponse.json({ error: error.message || 'Failed to delete poll' }, { status: 400 });

@@ -1,11 +1,11 @@
 import { vote } from '@/app/polls/actions';
 import { NextResponse, NextRequest } from 'next/server';
 
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const pollId = params.id;
+    const { id } = await params;
     const { optionId } = await request.json();
-    await vote(pollId, optionId);
+    await vote(id, optionId);
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (error: any) {
     console.error("Error submitting vote:", error);
